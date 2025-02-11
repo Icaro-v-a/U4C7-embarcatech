@@ -32,11 +32,11 @@ ser suave, recomenda-se o incremento de ciclo ativo de ±5µs, com um atraso de 
 ## Como Executar
 1. Clone o repositório:
    ```bash
-   git clone https://github.com/Icaro-v-a/U4C7-atividade1.git
+   git clone https://github.com/Icaro-v-a/U4C7-embarcatech.git
 
 2. Navegue até o diretório do projeto:
     ```bash
-        cd U4C7-atividade1
+        cd U4C7-embarcatech
 
 3. Compile e execute o projeto utilizando o Pico SDK no VS Code.
 
