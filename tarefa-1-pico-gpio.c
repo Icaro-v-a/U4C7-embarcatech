@@ -1,94 +1,65 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
-#include "hardware/timer.h"
+#include "hardware/pwm.h"
 
-// Definição dos pinos GPIO correspondentes aos LEDs do semáforo
-#define LED_RED 11
-#define LED_YELLOW 12
-#define LED_GREEN 13
+// Definição do pino GPIO utilizado para o controle do servo
+#define SERVO 22
 
-// Variável global para armazenar o estado atual do semáforo
-volatile int estado = 0;
+// Configuração do PWM para 50Hz (período de 20ms)
+const uint16_t PERIOD = 20000;   // Período do PWM em microssegundos (20ms)
+const float DIVIDER_PWM = 125.0; // Divisor de clock do PWM para ajustar a frequência
 
-// Protótipos das funções
-bool semaforo_callback(struct repeating_timer *t);
-void led_init(void);
+// Definição dos ciclos ativos para as posições do servo (em microssegundos)
+const uint16_t STEP = 5;        // Incremento do duty cycle para movimento suave (5µs)
+const uint16_t MIN_DUTY = 500;  // Posição 0° (500µs)
+const uint16_t MAX_DUTY = 2400; // Posição 180° (2400µs)
+const uint16_t MID_DUTY = 1470; // Posição 90° (1470µs)
 
-// Função para inicializar os LEDs
-void led_init()
+// Função para configurar o PWM no pino do servo
+void setup_pwm()
 {
-    // Inicializa o LED vermelho, define como saída e o desliga inicialmente
-    gpio_init(LED_RED);
-    gpio_set_dir(LED_RED, GPIO_OUT);
-    gpio_put(LED_RED, 0);
-
-    // Inicializa o LED amarelo, define como saída e o desliga inicialmente
-    gpio_init(LED_YELLOW);
-    gpio_set_dir(LED_YELLOW, GPIO_OUT);
-    gpio_put(LED_YELLOW, 0);
-
-    // Inicializa o LED verde, define como saída e o desliga inicialmente
-    gpio_init(LED_GREEN);
-    gpio_set_dir(LED_GREEN, GPIO_OUT);
-    gpio_put(LED_GREEN, 0);
-}
-
-// Callback que será chamado periodicamente pelo temporizador para alternar o estado do semáforo
-bool semaforo_callback(struct repeating_timer *t)
-{
-    // Desliga todos os LEDs antes de ativar o próximo estado
-    gpio_put(LED_RED, 0);
-    gpio_put(LED_YELLOW, 0);
-    gpio_put(LED_GREEN, 0);
-
-    // Alterna entre os estados do semáforo
-    if (estado == 0)
-    {
-        gpio_put(LED_RED, 1); // Liga o LED vermelho
-        estado = 1;           // Próximo estado será o amarelo
-    }
-    else if (estado == 1)
-    {
-        gpio_put(LED_YELLOW, 1); // Liga o LED amarelo
-        estado = 2;              // Próximo estado será o verde
-    }
-    else
-    {
-        gpio_put(LED_GREEN, 1); // Liga o LED verde
-        estado = 0;             // Próximo estado será o vermelho
-    }
-
-    return true; // Retorna true para manter a repetição do temporizador
+    uint slice;
+    gpio_set_function(SERVO, GPIO_FUNC_PWM); // Configura o pino como saída PWM
+    slice = pwm_gpio_to_slice_num(SERVO);    // Obtém o slice do PWM associado ao pino
+    pwm_set_clkdiv(slice, DIVIDER_PWM);      // Define o divisor de clock para ajustar a frequência
+    pwm_set_wrap(slice, PERIOD);             // Define o valor máximo do contador do PWM
+    pwm_set_gpio_level(SERVO, MIN_DUTY);     // Define a posição inicial (0°)
+    pwm_set_enabled(slice, true);            // Habilita o PWM
 }
 
 int main()
 {
     stdio_init_all(); // Inicializa a comunicação serial
-    led_init();       // Configura os LEDs
+    setup_pwm();      // Configura o PWM para controlar o servo
 
-    // Liga o LED vermelho inicialmente ao iniciar o sistema
-    gpio_put(LED_RED, 1);
-    estado = 1; // Define o próximo estado como o amarelo
+    // Posiciona o servo em 180° (2400µs) e aguarda 5 segundos
+    pwm_set_gpio_level(SERVO, MAX_DUTY);
+    sleep_ms(5000);
 
-    struct repeating_timer timer_semaforo;
+    // Posiciona o servo em 90° (1470µs) e aguarda 5 segundos
+    pwm_set_gpio_level(SERVO, MID_DUTY);
+    sleep_ms(5000);
 
-    // Configura um temporizador que chama a função semaforo_callback a cada 3 segundos
-    add_repeating_timer_ms(3000, semaforo_callback, NULL, &timer_semaforo);
+    // Posiciona o servo em 0° (500µs) e aguarda 5 segundos
+    pwm_set_gpio_level(SERVO, MIN_DUTY);
+    sleep_ms(5000);
 
-    // Variável para controle do tempo da impressão serial
-    uint64_t tempo_anterior = time_us_64();
+    // Inicializa o movimento suave entre 0° e 180°
+    uint16_t position = MIN_DUTY;  // Começa em 0°
+    int step = STEP;               // Define o incremento inicial
 
     while (true)
     {
-        uint64_t tempo_atual = time_us_64();
+        pwm_set_gpio_level(SERVO, position); // Atualiza a posição do servo
+        sleep_ms(10); // Aguarda 10ms para suavizar o movimento
 
-        // Verifica se passou 1 segundo (1.000.000 microssegundos) desde a última impressão
-        if ((tempo_atual - tempo_anterior) >= 1000000)
+        // Atualiza a posição do servo
+        position += step;
+
+        // Inverte o sentido do movimento ao atingir os limites (0° ou 180°)
+        if (position >= MAX_DUTY || position <= MIN_DUTY)
         {
-            printf("Semáforo operando...\n"); // Mensagem para monitoramento
-            tempo_anterior = tempo_atual; // Atualiza o tempo de referência
+            step = -step;
         }
-
-        tight_loop_contents(); // Mantém o loop eficiente sem consumir CPU desnecessária
     }
 }
