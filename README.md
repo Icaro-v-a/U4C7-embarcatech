@@ -41,4 +41,4 @@ ser suave, recomenda-se o incremento de ciclo ativo de ±5µs, com um atraso de 
 3. Compile e execute o projeto utilizando o Pico SDK no VS Code.
 
 ## Link do Vídeo
-O vídeo do experimento com o emprego da Ferramenta Educacional BitDogLab pode ser acessado [aqui](https://www.youtube.com/shorts/16MM5i9jo0k).
+O vídeo de apresentação pode ser acessado [aqui](https://www.youtube.com/shorts/lazQIwPJHCg).
